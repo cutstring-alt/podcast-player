@@ -37,7 +37,7 @@ jobs:
 
           news_items = []
           
-          # 方式1: HackerNews AI 相关
+          # HackerNews AI 相关
           try:
             r = requests.get(
               "https://hn.algolia.com/api/v1/search_by_date?query=AI&tags=story&hitsPerPage=10",
@@ -52,41 +52,6 @@ jobs:
                   news_items.append(f"- {title}\n  来源: {url}")
           except Exception as e:
             print(f"HN error: {e}")
-          
-          # 方式2: 极客时间 (如果HN没内容)
-          if not news_items:
-            try:
-              r = requests.get(
-                "https://time.geekbang.orgServantsofwill/column-api/all/articles?cid=96&size=20",
-                timeout=10,
-                headers={"User-Agent": "Mozilla/5.0"}
-              )
-              if r.status_code == 200:
-                data = r.json()
-                for item in data.get('data', [])[:8]:
-                  title = item.get('article_title', '')
-                  if title:
-                    news_items.append(f"- {title}\n  来源: time.geekbang.org")
-            except Exception as e:
-              print(f"GeekTime error: {e}")
-          
-          # 方式3: 知乎热榜 AI 相关
-          if not news_items:
-            try:
-              r = requests.get(
-                "https://www.zhihu.com/api/v3/feed/topstory/hot-lists/total?limit=20",
-                timeout=10,
-                headers={"User-Agent": "Mozilla/5.0"}
-              )
-              if r.status_code == 200:
-                data = r.json()
-                for item in data.get('data', [])[:8]:
-                  target = item.get('target', {})
-                  title = target.get('title', '')
-                  if 'AI' in title or '人工智能' in title or '大模型' in title:
-                    news_items.append(f"- {title}\n  来源: zhihu.com")
-            except Exception as e:
-              print(f"Zhihu error: {e}")
           
           date_str = datetime.now().strftime("%Y-%m-%d")
           news_content = f"# AI资讯 ({date_str})\n\n"
@@ -120,8 +85,9 @@ jobs:
           import subprocess
           import os
           from datetime import datetime
+          from dashscope.audio.tts import SpeechSynthesizer
 
-          dashscope.base_http_api_url = 'https://dashscope.aliyuncs.com/api/v1'
+          dashscope.api_key = "${{ secrets.DASHSCOPE_API_KEY }}"
 
           date_str = os.environ.get('DATE', datetime.now().strftime("%Y-%m-%d"))
           content_file = f"content/{date_str}.md"
@@ -143,33 +109,40 @@ jobs:
               clean_lines.append(line.split('来源:')[0].strip())
           
           tts_text = ' '.join(clean_lines[:500])
+          print(f"TTS text length: {len(tts_text)}")
           
-          response = dashscope.MultiModalConversation.call(
-              model="qwen3-tts-flash",
-              api_key="${{ secrets.DASHSCOPE_API_KEY }}",
-              text=tts_text,
-              voice="Cherry",
-              language_type="Chinese",
-              stream=False
-          )
-          
-          if response.status_code == 200:
-              audio_url = response.output.choices[0].message.audio.url
-              
-              wav_path = f"content/{date_str}.wav"
-              mp3_path = f"content/{date_str}.mp3"
-              
-              urllib.request.urlretrieve(audio_url, wav_path)
-              
-              subprocess.run(
-                  ["ffmpeg", "-i", wav_path, "-b:a", "128k", mp3_path, "-y"],
-                  capture_output=True
-              )
-              
-              print(f"TTS generated: {mp3_path}")
-          else:
-              print(f"TTS error: {response.code} - {response.message}")
-              exit(1)
+          try:
+            response = SpeechSynthesizer.call(
+                model="qwen-tts",
+                voice="Cherry",
+                text=tts_text,
+                format="wav"
+            )
+            
+            if response.status_code == 200:
+                wav_path = f"content/{date_str}.wav"
+                mp3_path = f"content/{date_str}.mp3"
+                
+                # response.output 是音频二进制
+                with open(wav_path, 'wb') as f:
+                    f.write(response.output)
+                
+                # 转换为MP3
+                subprocess.run(
+                    ["ffmpeg", "-i", wav_path, "-b:a", "128k", mp3_path, "-y"],
+                    capture_output=True
+                )
+                
+                print(f"TTS generated: {mp3_path}")
+            else:
+                print(f"TTS error: {response.code} - {response.message}")
+                print(f"Response: {response}")
+                exit(1)
+          except Exception as e:
+            print(f"TTS exception: {e}")
+            import traceback
+            traceback.print_exc()
+            exit(1)
           EOF
         env:
           DATE: ${{ steps.search.outputs.date }}
