@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>伊朗战争最新动态 - Podurama Style</title>
+    <title>AI 资讯播客</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -46,7 +46,7 @@
             transition: background 0.3s, color 0.3s;
         }
         
-        /* 左侧导航 */
+        /* 左侧导航 - 日期列表 */
         .sidebar {
             width: 240px;
             background: var(--bg-secondary);
@@ -81,30 +81,41 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-        .nav-item {
+        
+        .date-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 10px;
+        }
+        .date-list-title {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 10px;
+            margin-bottom: 10px;
+        }
+        .date-item {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 12px 20px;
+            padding: 12px;
             color: var(--text-secondary);
-            text-decoration: none;
-            transition: all 0.2s;
+            border-radius: 8px;
             cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 4px;
         }
-        .nav-item:hover, .nav-item.active {
+        .date-item:hover {
             background: rgba(99, 102, 241, 0.1);
             color: var(--accent-primary);
         }
-        .light-mode .nav-item:hover, .light-mode .nav-item.active {
-            background: rgba(14, 165, 233, 0.1);
-            color: #0ea5e9;
+        .date-item.active {
+            background: var(--accent-gradient);
+            color: #fff;
         }
-        .nav-icon {
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .date-icon {
+            font-size: 16px;
         }
         
         /* 主内容区 */
@@ -346,6 +357,20 @@
             line-height: 1.5;
         }
         
+        /* 加载状态 */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+        
+        /* 无内容 */
+        .no-content {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+        
         /* 响应式 */
         @media (max-width: 768px) {
             .sidebar {
@@ -364,34 +389,21 @@
     <div class="sidebar">
         <div class="logo">
             <div class="logo-icon">🎙️</div>
-            <div class="logo-text">Podurama</div>
+            <div class="logo-text">AI News</div>
         </div>
-        <div class="nav-item active">
-            <div class="nav-icon">🏠</div>
-            <span>Home</span>
-        </div>
-        <div class="nav-item">
-            <div class="nav-icon">🔥</div>
-            <span>Trending</span>
-        </div>
-        <div class="nav-item">
-            <div class="nav-icon">👤</div>
-            <span>Personal</span>
-        </div>
-        <div class="nav-item">
-            <div class="nav-icon">📻</div>
-            <span>Your Podcasts</span>
-        </div>
-        <div class="nav-item">
-            <div class="nav-icon">❤️</div>
-            <span>Favorites</span>
+        
+        <div class="date-list">
+            <div class="date-list-title">选择日期</div>
+            <div id="dateList">
+                <div class="loading">加载中...</div>
+            </div>
         </div>
     </div>
     
     <!-- 主内容区 -->
     <div class="main">
         <div class="header">
-            <h1 class="page-title">最新资讯</h1>
+            <h1 class="page-title" id="pageTitle">AI 资讯播客</h1>
             <div class="theme-toggle" onclick="toggleTheme()">
                 <span class="toggle-label">🌙</span>
                 <div class="toggle-track">
@@ -402,13 +414,13 @@
         </div>
         
         <!-- 播客卡片 -->
-        <div class="podcast-card">
+        <div class="podcast-card" id="podcastCard">
             <div class="podcast-header">
                 <div class="podcast-cover">🎙️</div>
                 <div class="podcast-info">
-                    <div class="podcast-label">News Podcast</div>
-                    <div class="podcast-title">伊朗战争最新动态</div>
-                    <div class="podcast-meta">2026年3月8日 · 7条资讯 · 约3分钟</div>
+                    <div class="podcast-label">AI News Podcast</div>
+                    <div class="podcast-title" id="podcastTitle">加载中...</div>
+                    <div class="podcast-meta" id="podcastMeta">--</div>
                 </div>
             </div>
             
@@ -419,7 +431,7 @@
                 </div>
                 <div class="time-display">
                     <span id="currentTime">0:00</span>
-                    <span id="duration">3:15</span>
+                    <span id="duration">--:--</span>
                 </div>
                 <div class="controls">
                     <button class="control-btn" onclick="restartAudio()">⏮</button>
@@ -434,56 +446,8 @@
             <div class="section-title">
                 <span>📝</span> 文字版内容
             </div>
-            <div class="episode-list">
-                <div class="episode-item">
-                    <div class="episode-number">1</div>
-                    <div class="episode-content">
-                        <div class="episode-title">哈梅内伊遇害，伊朗局势动荡</div>
-                        <div class="episode-desc">据BBC报道，伊朗最高领袖哈梅内伊已确认遇害，葬礼推迟举行，接班人成为清除目标。</div>
-                    </div>
-                </div>
-                <div class="episode-item">
-                    <div class="episode-number">2</div>
-                    <div class="episode-content">
-                        <div class="episode-title">美以大规模空袭</div>
-                        <div class="episode-desc">美军和以色列对德黑兰、贝鲁特等城市发动大规模空袭。美国国务卿卢比奥表示，最猛烈的打击尚未到来。</div>
-                    </div>
-                </div>
-                <div class="episode-item">
-                    <div class="episode-number">3</div>
-                    <div class="episode-content">
-                        <div class="episode-title">伊朗反击</div>
-                        <div class="episode-desc">伊朗使用导弹、无人机全面袭击沙特、卡塔尔、阿联酋、巴林及科威特等国的民用设施。</div>
-                    </div>
-                </div>
-                <div class="episode-item">
-                    <div class="episode-number">4</div>
-                    <div class="episode-content">
-                        <div class="episode-title">地区局势升级</div>
-                        <div class="episode-desc">卫星图像显示伊朗的强烈反应导致美军基地设施受损，战争规模持续扩大。</div>
-                    </div>
-                </div>
-                <div class="episode-item">
-                    <div class="episode-number">5</div>
-                    <div class="episode-content">
-                        <div class="episode-title">国际反应</div>
-                        <div class="episode-desc">卡塔尔警告伊朗不要将邻国卷入战争。俄罗斯尚未明确表态支援伊朗。</div>
-                    </div>
-                </div>
-                <div class="episode-item">
-                    <div class="episode-number">6</div>
-                    <div class="episode-content">
-                        <div class="episode-title">俄罗斯态度</div>
-                        <div class="episode-desc">伊朗总统佩泽什基扬表示"我们视为朋友的国家在战争期间没有帮助我们"。</div>
-                    </div>
-                </div>
-                <div class="episode-item">
-                    <div class="episode-number">7</div>
-                    <div class="episode-content">
-                        <div class="episode-title">对中国影响</div>
-                        <div class="episode-desc">BBC分析指出这场战争可能动摇中国在伊朗的能源投资和战略布局。</div>
-                    </div>
-                </div>
+            <div class="episode-list" id="episodeList">
+                <div class="loading">加载中...</div>
             </div>
         </div>
     </div>
@@ -499,10 +463,176 @@
         const durationEl = document.getElementById('duration');
         
         let isPlaying = false;
+        let currentDate = null;
         
-        // 设置音频源
-        audio.src = 'podcast-audio.mp3';
+        // 初始化
+        async function init() {
+            await loadDateList();
+            
+            // 默认选择最新日期
+            const dates = document.querySelectorAll('.date-item');
+            if (dates.length > 0) {
+                dates[0].click();
+            }
+        }
         
+        // 加载日期列表
+        async function loadDateList() {
+            const dateList = document.getElementById('dateList');
+            
+            // 模拟从 content 目录加载日期列表
+            // 实际部署时可改为从 GitHub API 获取
+            const dates = [];
+            
+            // 尝试获取现有内容
+            try {
+                // 这里可以扩展为从 GitHub API 获取 content 目录的文件列表
+                // 暂时使用静态方式
+            } catch (e) {
+                console.log('Using default dates');
+            }
+            
+            // 生成最近7天的日期
+            const today = new Date();
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(today);
+                d.setDate(d.getDate() - i);
+                dates.push(d);
+            }
+            
+            let html = '';
+            dates.forEach((d, idx) => {
+                const dateStr = formatDateStr(d);
+                const label = idx === 0 ? '今天' : (idx === 1 ? '昨天' : dateStr);
+                html += `
+                    <div class="date-item" data-date="${dateStr}" onclick="selectDate('${dateStr}')">
+                        <span class="date-icon">📅</span>
+                        <span>${label} - ${d.getMonth() + 1}月${d.getDate()}日</span>
+                    </div>
+                `;
+            });
+            
+            dateList.innerHTML = html;
+        }
+        
+        // 选择日期
+        async function selectDate(dateStr) {
+            // 更新选中状态
+            document.querySelectorAll('.date-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.date === dateStr) {
+                    item.classList.add('active');
+                }
+            });
+            
+            currentDate = dateStr;
+            await loadContent(dateStr);
+        }
+        
+        // 加载内容
+        async function loadContent(dateStr) {
+            const podcastTitle = document.getElementById('podcastTitle');
+            const podcastMeta = document.getElementById('podcastMeta');
+            const episodeList = document.getElementById('episodeList');
+            
+            podcastTitle.textContent = '加载中...';
+            podcastMeta.textContent = '--';
+            episodeList.innerHTML = '<div class="loading">加载中...</div>';
+            
+            // 设置音频源
+            audio.src = `content/${dateStr}.mp3`;
+            
+            // 更新标题
+            const [year, month, day] = dateStr.split('-');
+            podcastTitle.textContent = `AI 资讯 - ${month}月${day}日`;
+            podcastMeta.textContent = 'AI 资讯播客';
+            
+            // 尝试加载文字内容
+            try {
+                // 尝试获取 markdown 内容
+                // 这里使用 fetch 获取，实际部署时可改为从 GitHub API
+                const response = await fetch(`content/${dateStr}.md`);
+                if (response.ok) {
+                    const text = await response.text();
+                    renderContent(text);
+                } else {
+                    episodeList.innerHTML = '<div class="no-content">暂无内容</div>';
+                }
+            } catch (e) {
+                // 如果是本地测试或没有内容，显示示例
+                if (dateStr === new Date().toISOString().split('T')[0]) {
+                    // 今天的示例内容
+                    renderSampleContent();
+                } else {
+                    episodeList.innerHTML = '<div class="no-content">暂无内容</div>';
+                }
+            }
+        }
+        
+        // 渲染内容
+        function renderContent(markdown) {
+            const episodeList = document.getElementById('episodeList');
+            
+            // 简单解析 markdown
+            const lines = markdown.split('\n');
+            let html = '';
+            let count = 0;
+            
+            for (const line of lines) {
+                if (line.startsWith('- ')) {
+                    count++;
+                    const content = line.substring(2).split('来源:');
+                    const title = content[0].trim();
+                    const source = content[1] ? content[1].trim() : '';
+                    
+                    html += `
+                        <div class="episode-item">
+                            <div class="episode-number">${count}</div>
+                            <div class="episode-content">
+                                <div class="episode-title">${title}</div>
+                                ${source ? `<div class="episode-desc">${source}</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            
+            if (count === 0) {
+                html = '<div class="no-content">暂无内容</div>';
+            }
+            
+            episodeList.innerHTML = html;
+        }
+        
+        // 示例内容（当天没有内容时显示）
+        function renderSampleContent() {
+            const episodeList = document.getElementById('episodeList');
+            episodeList.innerHTML = `
+                <div class="episode-item">
+                    <div class="episode-number">1</div>
+                    <div class="episode-content">
+                        <div class="episode-title">GitHub 发布新版本 Copilot</div>
+                        <div class="episode-desc">来源: https://github.com</div>
+                    </div>
+                </div>
+                <div class="episode-item">
+                    <div class="episode-number">2</div>
+                    <div class="episode-content">
+                        <div class="episode-title">OpenAI 推出新模型 GPT-5</div>
+                        <div class="episode-desc">来源: https://openai.com</div>
+                    </div>
+                </div>
+                <div class="episode-item">
+                    <div class="episode-number">3</div>
+                    <div class="episode-content">
+                        <div class="episode-title">Meta 开源新 AI 框架</div>
+                        <div class="episode-desc">来源: https://meta.ai</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 音频控制
         audio.addEventListener('loadedmetadata', () => {
             durationEl.textContent = formatTime(audio.duration);
         });
@@ -558,10 +688,20 @@
             return mins + ':' + (secs < 10 ? '0' : '') + secs;
         }
         
+        function formatDateStr(d) {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
         // 主题切换
         function toggleTheme() {
             document.body.classList.toggle('light-mode');
         }
+        
+        // 启动
+        init();
     </script>
 </body>
 </html>
