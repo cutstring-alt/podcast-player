@@ -24,6 +24,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg
           pip install dashscope requests ffmpeg-python
 
       - name: Search AI news
@@ -121,7 +122,6 @@ jobs:
           )
           
           if response.status_code == 200:
-              # 正确的访问路径: response.output.audio.url
               audio_url = response.output.audio.url
               print(f"Audio URL: {audio_url}")
               
