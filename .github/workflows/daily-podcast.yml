@@ -119,7 +119,12 @@ jobs:
                 format="wav"
             )
             
-            if response.status_code == 200:
+            # 检查响应
+            print(f"Response type: {type(response)}")
+            print(f"Response: {response}")
+            
+            # SpeechSynthesisResult 有 output 属性
+            if hasattr(response, 'output') and response.output:
                 wav_path = f"content/{date_str}.wav"
                 mp3_path = f"content/{date_str}.mp3"
                 
@@ -135,8 +140,7 @@ jobs:
                 
                 print(f"TTS generated: {mp3_path}")
             else:
-                print(f"TTS error: {response.code} - {response.message}")
-                print(f"Response: {response}")
+                print(f"TTS failed: no output")
                 exit(1)
           except Exception as e:
             print(f"TTS exception: {e}")
