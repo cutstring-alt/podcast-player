@@ -120,11 +120,9 @@ jobs:
               stream=False
           )
           
-          print(f"Response: {response}")
-          print(f"Status code: {response.status_code}")
-          
           if response.status_code == 200:
-              audio_url = response.output.choices[0].message.audio.url
+              # 正确的访问路径: response.output.audio.url
+              audio_url = response.output.audio.url
               print(f"Audio URL: {audio_url}")
               
               wav_path = f"content/{date_str}.wav"
