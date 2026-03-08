@@ -110,6 +110,7 @@ jobs:
           
           tts_text = ' '.join(clean_lines[:500])
           print(f"TTS text length: {len(tts_text)}")
+          print(f"TTS text: {tts_text[:100]}...")
           
           try:
             response = SpeechSynthesizer.call(
@@ -120,28 +121,39 @@ jobs:
             )
             
             # 检查响应
-            print(f"Response type: {type(response)}")
             print(f"Response: {response}")
+            print(f"Response attributes: {dir(response)}")
             
-            # SpeechSynthesisResult 有 output 属性
+            # 尝试不同的属性
             if hasattr(response, 'output') and response.output:
-                wav_path = f"content/{date_str}.wav"
-                mp3_path = f"content/{date_str}.mp3"
-                
-                # response.output 是音频二进制
-                with open(wav_path, 'wb') as f:
-                    f.write(response.output)
-                
-                # 转换为MP3
-                subprocess.run(
-                    ["ffmpeg", "-i", wav_path, "-b:a", "128k", mp3_path, "-y"],
-                    capture_output=True
-                )
-                
-                print(f"TTS generated: {mp3_path}")
+                audio_data = response.output
+            elif hasattr(response, 'audio') and response.audio:
+                audio_data = response.audio
+            elif hasattr(response, 'data') and response.data:
+                audio_data = response.data
             else:
-                print(f"TTS failed: no output")
+                # 可能是错误响应
+                print(f"No audio data found")
+                if hasattr(response, 'code'):
+                    print(f"Error code: {response.code}")
+                if hasattr(response, 'message'):
+                    print(f"Error message: {response.message}")
                 exit(1)
+            
+            wav_path = f"content/{date_str}.wav"
+            mp3_path = f"content/{date_str}.mp3"
+            
+            with open(wav_path, 'wb') as f:
+                f.write(audio_data)
+            
+            # 转换为MP3
+            subprocess.run(
+                ["ffmpeg", "-i", wav_path, "-b:a", "128k", mp3_path, "-y"],
+                capture_output=True
+            )
+            
+            print(f"TTS generated: {mp3_path}")
+                
           except Exception as e:
             print(f"TTS exception: {e}")
             import traceback
