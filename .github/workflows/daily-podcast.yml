@@ -9,9 +9,13 @@ on:
 jobs:
   generate-podcast:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -20,60 +24,46 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install dashscope requests ffmpeg-python
+          pip install dashscope requests ffmpeg-python brave-search
 
       - name: Search AI news
         id: search
         run: |
           python << 'EOF'
-          import subprocess
-          import json
           import os
-          from datetime import datetime, timedelta
+          import json
+          from datetime import datetime
+          from brave_search import BraveSearch
 
-          # 获取近24小时的AI新闻
-          result = subprocess.run(
-            ["pip", "install", "-q", "brave-search"],
-            capture_output=True
-          )
+          client = BraveSearch(api_key="${{ secrets.BRAVE_API_KEY }}")
           
-          # 使用 Brave Search API 搜索
-          # 这里用 curl 直接调用
-          import requests
-          
-          # 搜索AI新闻
-          headers = {"Accept": "application/json"}
-          # 由于没有 Brave API key，我们使用 RSS 源作为替代
-          
-          # 尝试多个AI新闻源
           news_items = []
           
-          # 方式1: 尝试 HackerNews AI 相关
           try:
-            r = requests.get("https://hn.algolia.com/api/v1/search_by_date?query=AI&tags=story&hitsPerPage=10", timeout=10)
-            if r.status_code == 200:
-              data = r.json()
-              for hit in data.get('hits', [])[:5]:
-                title = hit.get('title', '')
-                url = hit.get('url', f"https://news.ycombinator.com/item?id={hit.get('objectID')}")
+            results = client.search("AI 人工智能 新闻", count=10)
+            if results and 'web' in results:
+              for item in results['web']:
+                title = item.get('title', '')
+                url = item.get('url', '')
                 if title:
                   news_items.append(f"- {title}\n  来源: {url}")
           except Exception as e:
-            print(f"HN error: {e}")
+            print(f"Brave search error: {e}")
           
-          # 方式2: TechCrunch RSS
-          try:
-            r = requests.get("https://techcrunch.com/category/artificial-intelligence/feed/", timeout=10)
-            if r.status_code == 200:
-              import re
-              items = re.findall(r'<item><title><!\[CDATA\[(.*?)\]\]></title>.*?<link>(.*?)</link>', r.text)
-              for title, url in items[:5]:
-                if title and title not in str(news_items):
-                  news_items.append(f"- {title}\n  来源: {url}")
-          except Exception as e:
-            print(f"TechCrunch error: {e}")
+          if not news_items:
+            import requests
+            try:
+              r = requests.get("https://hn.algolia.com/api/v1/search_by_date?query=AI&tags=story&hitsPerPage=10", timeout=10)
+              if r.status_code == 200:
+                data = r.json()
+                for hit in data.get('hits', [])[:5]:
+                  title = hit.get('title', '')
+                  url = hit.get('url', f"https://news.ycombinator.com/item?id={hit.get('objectID')}")
+                  if title:
+                    news_items.append(f"- {title}\n  来源: {url}")
+            except Exception as e:
+              print(f"HN error: {e}")
           
-          # 写入新闻文件
           date_str = datetime.now().strftime("%Y-%m-%d")
           news_content = f"# AI资讯 ({date_str})\n\n"
           news_content += "## 今日要闻\n\n"
@@ -84,17 +74,15 @@ jobs:
           else:
             news_content += "暂无最新资讯\n"
           
-          # 保存到 content 目录
           os.makedirs("content", exist_ok=True)
           with open(f"content/{date_str}.md", "w", encoding="utf-8") as f:
             f.write(news_content)
           
-          # 输出给下一步
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
             f.write(f"date={date_str}\n")
-            f.write(f"content={news_content}\n")
           
           print(f"Generated news for {date_str}")
+          print(f"Found {len(news_items)} items")
           EOF
 
       - name: Generate TTS audio
@@ -109,7 +97,6 @@ jobs:
 
           dashscope.base_http_api_url = 'https://dashscope.aliyuncs.com/api/v1'
 
-          # 读取新闻内容
           date_str = os.environ.get('DATE', datetime.now().strftime("%Y-%m-%d"))
           content_file = f"content/{date_str}.md"
           
@@ -120,7 +107,6 @@ jobs:
           with open(content_file, 'r', encoding='utf-8') as f:
             text = f.read()
           
-          # 提取纯文本用于播报（去掉标题和链接）
           lines = text.split('\n')
           clean_lines = []
           for line in lines:
@@ -128,15 +114,13 @@ jobs:
             if line and not line.startswith('#') and not line.startswith('来源:') and not line.startswith('- '):
               clean_lines.append(line)
             elif line.startswith('- '):
-              # 保留条目但去掉链接
               clean_lines.append(line.split('来源:')[0].strip())
           
-          tts_text = ' '.join(clean_lines[:500])  # 限制长度
-        
-          # 调用阿里云 TTS
+          tts_text = ' '.join(clean_lines[:500])
+          
           response = dashscope.MultiModalConversation.call(
               model="qwen3-tts-flash",
-              api_key="sk-e3cc50552fcd446ea0f3556430aa7cfc",
+              api_key="${{ secrets.DASHSCOPE_API_KEY }}",
               text=tts_text,
               voice="Cherry",
               language_type="Chinese",
@@ -146,23 +130,17 @@ jobs:
           if response.status_code == 200:
               audio_url = response.output.choices[0].message.audio.url
               
-              # 下载并转换
               wav_path = f"content/{date_str}.wav"
               mp3_path = f"content/{date_str}.mp3"
               
               urllib.request.urlretrieve(audio_url, wav_path)
               
-              # 转换为MP3
               subprocess.run(
                   ["ffmpeg", "-i", wav_path, "-b:a", "128k", mp3_path, "-y"],
                   capture_output=True
               )
               
               print(f"TTS generated: {mp3_path}")
-              
-              # 输出给下一步
-              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-                f.write(f"audio={mp3_path}\n")
           else:
               print(f"TTS error: {response.code} - {response.message}")
               exit(1)
@@ -175,21 +153,12 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           
-          # 添加新内容
           git add content/
           
-          # 检查是否有更改
           if git diff --cached --quiet; then
             echo "No content to commit"
             exit 0
           fi
           
-          # Commit
           git commit -m "Update podcast: $(date +%Y-%m-%d)"
-          
-          # Push（需要 GITHUB_TOKEN 或 PAT）
-          # 由于这个是推送到同一个仓库，使用 GITHUB_TOKEN 可能有权限问题
-          # 需要设置 repo 权限
           git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
