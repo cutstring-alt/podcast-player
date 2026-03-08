@@ -479,35 +479,46 @@
         // 加载日期列表
         async function loadDateList() {
             const dateList = document.getElementById('dateList');
+            dateList.innerHTML = '<div class="loading">加载中...</div>';
             
-            // 模拟从 content 目录加载日期列表
-            // 实际部署时可改为从 GitHub API 获取
             const dates = [];
             
-            // 尝试获取现有内容
+            // 从 GitHub API 获取实际存在的日期
             try {
-                // 这里可以扩展为从 GitHub API 获取 content 目录的文件列表
-                // 暂时使用静态方式
+                const response = await fetch('https://api.github.com/repos/cutstring-alt/podcast-player/contents/content');
+                if (response.ok) {
+                    const files = await response.json();
+                    for (const file of files) {
+                        // 匹配 YYYY-MM-DD.md 文件
+                        const match = file.name.match(/^(\d{4}-\d{2}-\d{2})\.md$/);
+                        if (match) {
+                            dates.push(match[1]);
+                        }
+                    }
+                    dates.sort().reverse(); // 按日期倒序
+                }
             } catch (e) {
-                console.log('Using default dates');
+                console.log('Failed to fetch dates, using default');
             }
             
-            // 生成最近7天的日期
-            const today = new Date();
-            for (let i = 0; i < 7; i++) {
-                const d = new Date(today);
-                d.setDate(d.getDate() - i);
-                dates.push(d);
+            // 如果没有找到日期，显示今天
+            if (dates.length === 0) {
+                const today = new Date();
+                dates.push(formatDateStr(today));
             }
             
             let html = '';
-            dates.forEach((d, idx) => {
-                const dateStr = formatDateStr(d);
-                const label = idx === 0 ? '今天' : (idx === 1 ? '昨天' : dateStr);
+            dates.forEach((dateStr, idx) => {
+                const d = new Date(dateStr);
+                const month = d.getMonth() + 1;
+                const day = d.getDate();
+                const isToday = dateStr === formatDateStr(new Date());
+                const label = isToday ? '今天' : (idx === 1 ? '昨天' : '');
+                
                 html += `
                     <div class="date-item" data-date="${dateStr}" onclick="selectDate('${dateStr}')">
                         <span class="date-icon">📅</span>
-                        <span>${label} - ${d.getMonth() + 1}月${d.getDate()}日</span>
+                        <span>${label} ${month}月${day}日</span>
                     </div>
                 `;
             });
